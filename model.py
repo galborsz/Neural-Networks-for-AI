@@ -1,11 +1,26 @@
-import numpy as numpy
-
-#from keras.layers import LSTM, Dense, Dropout
-#from keras.models import Sequential, load_model
+import os
+import sys
+import time
+import warnings
+import numpy as np
 import pandas as pd
+from numpy import newaxis
+from keras.layers.core import Dense, Activation, Dropout
+from keras.layers.recurrent import LSTM
+from keras.models import Sequential
 
-xls = pd.read_excel("/Users/giselaalbors/desktop/M3C.xls", index_col=0)
-selectedrows = xls.iloc[0:146]
-selectedcolumn = selectedrows.iloc[:, 5:25]
-data = selectedcolumn.values.tolist() #convert data into list
-print(data)
+def load_data(filename):
+
+    data = pd.read_csv(filename)
+    df = pd.DataFrame(data) 
+    df = df[:146]
+    df.drop(df.columns[26:], axis=1, inplace=True)
+    df.drop(df.columns[[0, 1, 2, 4, 5]], axis = 1, inplace = True) 
+    
+
+
+def main(argv):
+    load_data("M3C.csv")
+
+if __name__ == "__main__":
+    main(sys.argv)
