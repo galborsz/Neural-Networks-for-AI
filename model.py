@@ -36,6 +36,21 @@ def split_sequence(seq):
         y.append(elem[14:])
     return X,y
 
+def plot(pred, yhat):
+    fig = plt.figure(figsize=(10,10))
+    ax = plt.axes()
+
+    print(pred[0])
+    print(yhat[0])
+    ax.plot(list(pred[0]),yhat[0],'x', label="k=4")
+
+    ax.set_xlabel("original value",fontsize=20)
+    ax.set_ylabel("predicted value",fontsize=20)
+
+    ax.set_xlim()
+    ax.legend(prop={'size': 13})
+    plt.savefig('plot.png')
+    plt.show()
 
 def main(argv):
     # define input sequence
@@ -45,7 +60,6 @@ def main(argv):
 
     data=np.array(data)
     pred=np.array(pred)
-
 
     # define model
     model = Sequential()
@@ -62,21 +76,7 @@ def main(argv):
     yhat = model.predict(x_input, verbose=0)
     print(yhat)
 
-    fig = plt.figure(figsize=(10,10))
-    ax = plt.axes()
-
-    print(pred[0])
-    print(yhat[0])
-    ax.plot(list(pred[0]),yhat[0],'x', label="k=4")
-
-    #ax.plot([11.5,22.5],[11.5,22.5],'k-')
-    ax.set_xlabel("original value",fontsize=20)
-    ax.set_ylabel("predicted value",fontsize=20)
-    #ax.set_title("Imputation results",fontsize=27)
-    ax.set_xlim()
-    ax.legend(prop={'size': 13})
-    plt.savefig('plot.png')
-    plt.show()
+    plot(pred, yhat)
 
 if __name__ == "__main__":
     main(sys.argv)
