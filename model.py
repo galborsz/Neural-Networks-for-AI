@@ -7,6 +7,7 @@ from keras.layers.core import Dense, Activation, Dropout
 from keras.layers.recurrent import LSTM
 from keras.models import Sequential
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 
 def load_data(filename):
@@ -17,7 +18,7 @@ def load_data(filename):
     # select rows and columns
     df = df[:146]
     df.drop(df.columns[26:], axis=1, inplace=True)
-    df.drop(df.columns[[0, 1, 2, 4, 5]], axis=1, inplace=True)
+    df.drop(df.columns[[0, 1, 2, 3, 4, 5]], axis=1, inplace=True)
 
     # convert dataFrame into a numpy array
     result = df.to_numpy()
@@ -27,45 +28,55 @@ def load_data(filename):
 
 # split a univariate sequence into samples
 # SOURCE: https://machinelearningmastery.com/how-to-develop-multilayer-perceptron-models-for-time-series-forecasting/
-def split_sequence(sequence, n_steps):
-    X, y = list(), list()
-    for i in range(len(sequence)):
-        # find the end of this pattern
-        end_ix = i + n_steps
-        # check if we are beyond the sequence
-        if end_ix > len(sequence) - 1:
-            break
-        # gather input and output parts of the pattern
-        seq_x, seq_y = sequence[i:end_ix], sequence[end_ix]
-        X.append(seq_x)
-        y.append(seq_y)
-    return array(X), array(y)
+def split_sequence(seq):
+    X=[]
+    y=[]
+    for elem in seq:
+        X.append(elem[:14])
+        y.append(elem[14:])
+    return X,y
 
 
 def main(argv):
     # define input sequence
     raw_seq = load_data("M3C.csv")
-    #raw_seq = [10, 20, 30, 40, 50, 60, 70, 80, 90]
-    print(raw_seq)
-    # choose a number of time steps
-    n_steps = 3
-    # split into samples
-    X, y = split_sequence(raw_seq, n_steps)
+
+    data,pred=split_sequence(raw_seq)
+
+    data=np.array(data)
+    pred=np.array(pred)
+
 
     # define model
     model = Sequential()
-    model.add(Dense(100, activation='relu', input_dim=n_steps))
-    model.add(Dense(1))
-    model.compile(optimizer='adam', loss='mse')
+    model.add(Dense(100, activation='relu'))
+    model.add(Dense(6, activation='relu'))
+    model.compile(optimizer='adam', loss='mse',metrics=['accuracy'])
 
     # fit model
-    model.fit(X, y, epochs=2000, verbose=0)
+    model.fit(data, pred, batch_size=14 , epochs=30, verbose=1)
 
     # demonstrate prediction
-    x_input = array([70, 80, 90])
-    x_input = x_input.reshape((1, n_steps))
+    x_input = np.array([940.66, 1084.86, 1244.98, 1445.02, 1683.17, 2038.15, 2342.52,2602.45, 2927.87, 3103.96, 3360.27, 3807.63, 4387.88, 4936.99])
+    x_input = x_input.reshape((1, 14))
     yhat = model.predict(x_input, verbose=0)
     print(yhat)
+
+    fig = plt.figure(figsize=(10,10))
+    ax = plt.axes()
+
+    print(pred[0])
+    print(yhat[0])
+    ax.plot(list(pred[0]),yhat[0],'x', label="k=4")
+
+    #ax.plot([11.5,22.5],[11.5,22.5],'k-')
+    ax.set_xlabel("original value",fontsize=20)
+    ax.set_ylabel("predicted value",fontsize=20)
+    #ax.set_title("Imputation results",fontsize=27)
+    ax.set_xlim()
+    ax.legend(prop={'size': 13})
+    plt.savefig('plot.png')
+    plt.show()
 
 if __name__ == "__main__":
     main(sys.argv)
