@@ -4,24 +4,42 @@ import numpy as np
 from numpy import array
 import pandas as pd
 from keras.layers.core import Dense, Activation, Dropout
-from keras.layers.recurrent import LSTM
 from keras.models import Sequential
 import tensorflow as tf
 import matplotlib.pyplot as plt
+from statsmodels.tsa.stattools import adfuller
 
 
 def load_data(filename):
     # read data from csv file
     data = pd.read_csv(filename)
+    
     df = pd.DataFrame(data)
 
     # select rows and columns
     df = df[:146]
     df.drop(df.columns[26:], axis=1, inplace=True)
     df.drop(df.columns[[0, 1, 2, 3, 4, 5]], axis=1, inplace=True)
+ 
+    #statistical test to check if our time series are non-stationary
+    """X = df.values
+    result = adfuller(X[0])
+    print('ADF Statistic: %f' % result[0])
+    print('p-value: %f' % result[1])
+    print('Critical Values:')
+    for key, value in result[4].items():
+        print('\t%s: %.3f' % (key, value))"""
+    X = df.values
+    diff = []
+    for i in range(1, len(X)):
+        value = X[i] - X[i - 1]
+        diff.append(value)
+    plt.plot(diff)
+    plt.show()
 
-    # convert dataFrame into a numpy array
-    result = df.to_numpy()
+    #convert dataFrame into a numpy array
+    #result = df.to_numpy()
+    result = np.array(diff)
 
     return result
 
@@ -40,8 +58,8 @@ def plot(pred, yhat):
     fig = plt.figure(figsize=(10,10))
     ax = plt.axes()
 
-    print(pred[0])
-    print(yhat[0])
+    #print(pred[0])
+    #print(yhat[0])
     ax.plot(list(pred[0]),yhat[0],'x', label="k=4")
 
     ax.set_xlabel("original value",fontsize=20)
