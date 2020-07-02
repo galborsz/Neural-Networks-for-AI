@@ -8,6 +8,7 @@ from keras.models import Sequential
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from statsmodels.tsa.stattools import adfuller
+from sklearn.model_selection import train_test_split
 
 
 def load_data(filename):
@@ -34,11 +35,9 @@ def load_data(filename):
     for i in range(1, len(X)):
         value = X[i] - X[i - 1]
         diff.append(value)
-    plt.plot(diff)
-    plt.show()
+    
 
     #convert dataFrame into a numpy array
-    #result = df.to_numpy()
     result = np.array(diff)
 
     return result
@@ -74,15 +73,23 @@ def main(argv):
     # define input sequence
     raw_seq = load_data("M3C.csv")
 
-    data,pred=split_sequence(raw_seq)
+    # split between training and testing data
+    test_dataset, training_dataset = train_test_split(raw_seq, train_size=0.8, test_size=0.2, random_state = 3)
+
+    data,pred=split_sequence(training_dataset)
 
     data=np.array(data)
     pred=np.array(pred)
 
     # define model
     model = Sequential()
+    model.add(Dense(80, activation='relu'))
+    model.add(Dropout(0.1))
     model.add(Dense(100, activation='relu'))
-    model.add(Dense(6, activation='relu'))
+    model.add(Dropout(0.1))
+    model.add(Dense(70, activation='relu'))
+    model.add(Dropout(0.1))
+    model.add(Dense(6))
     model.compile(optimizer='adam', loss='mse',metrics=['accuracy'])
 
     # fit model
