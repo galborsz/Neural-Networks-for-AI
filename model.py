@@ -9,6 +9,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from statsmodels.tsa.stattools import adfuller
 from sklearn.model_selection import train_test_split
+from statsmodels.tsa.seasonal import seasonal_decompose
 
 
 def load_data(filename):
@@ -16,10 +17,9 @@ def load_data(filename):
     data = pd.read_csv(filename)
     
     df = pd.DataFrame(data)
-
     # select rows and columns
-    df = df[:146]
-    df.drop(df.columns[26:], axis=1, inplace=True)
+    df = df[:475]
+    df.drop(df.columns[74:], axis=1, inplace=True)
     df.drop(df.columns[[0, 1, 2, 3, 4, 5]], axis=1, inplace=True)
  
     #statistical test to check if our time series are non-stationary
@@ -38,9 +38,13 @@ def load_data(filename):
     
 
     #convert dataFrame into a numpy array
-    result = np.array(diff)
+    detrended = np.array(diff)
+    """result = seasonal_decompose(np.transpose(X[50]), model='additive', freq = 1)
 
-    return result
+    result.plot()
+    plt.show()"""
+
+    return detrended
 
 
 # split a univariate sequence into samples
@@ -49,8 +53,8 @@ def split_sequence(seq):
     X=[]
     y=[]
     for elem in seq:
-        X.append(elem[:14])
-        y.append(elem[14:])
+        X.append(elem[:62])
+        y.append(elem[62:])
     return X,y
 
 def plot(pred, yhat):
@@ -70,8 +74,11 @@ def plot(pred, yhat):
     plt.show()
 
 def main(argv):
+    #read_file = pd.read_excel (r'/Users/giselaalbors/desktop/M3C.xls', sheet_name='M3Month')
+    #read_file.to_csv (r'/Users/giselaalbors/desktop/new.csv', index = None, header=True)
+
     # define input sequence
-    raw_seq = load_data("M3C.csv")
+    raw_seq = load_data("new.csv")
 
     # split between training and testing data
     test_dataset, training_dataset = train_test_split(raw_seq, train_size=0.8, test_size=0.2, random_state = 3)
@@ -96,8 +103,8 @@ def main(argv):
     model.fit(data, pred, batch_size=14 , epochs=30, verbose=1)
 
     # demonstrate prediction
-    x_input = np.array([940.66, 1084.86, 1244.98, 1445.02, 1683.17, 2038.15, 2342.52,2602.45, 2927.87, 3103.96, 3360.27, 3807.63, 4387.88, 4936.99])
-    x_input = x_input.reshape((1, 14))
+    x_input = np.array(data[0])
+    x_input = x_input.reshape((1, 62))
     yhat = model.predict(x_input, verbose=0)
     print(yhat)
 
