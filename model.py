@@ -1,5 +1,6 @@
 import os
 import sys
+import statistics
 import numpy as np
 from numpy import array
 import pandas as pd
@@ -9,42 +10,47 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from statsmodels.tsa.stattools import adfuller
 from sklearn.model_selection import train_test_split
-from statsmodels.tsa.seasonal import seasonal_decompose
 
 
 def load_data(filename):
     # read data from csv file
     data = pd.read_csv(filename)
-    
     df = pd.DataFrame(data)
+
     # select rows and columns
     df = df[:475]
     df.drop(df.columns[74:], axis=1, inplace=True)
     df.drop(df.columns[[0, 1, 2, 3, 4, 5]], axis=1, inplace=True)
  
-    #statistical test to check if our time series are non-stationary
-    """X = df.values
-    result = adfuller(X[0])
+    X = np.array(df.values)
+
+    """result = adfuller(X[0])
     print('ADF Statistic: %f' % result[0])
     print('p-value: %f' % result[1])
     print('Critical Values:')
     for key, value in result[4].items():
         print('\t%s: %.3f' % (key, value))"""
-    X = df.values
-    diff = []
-    for i in range(1, len(X)):
-        value = X[i] - X[i - 1]
-        diff.append(value)
+    return X
+
+def detrending (X):
+    #statistical test to check if our time series are non-stationary
+    all = []
+    for serie in X:
+        avg = []
+        avg.append(np.mean([serie[0], serie[1], serie[2]]))
+        for i in range(1, len(serie)-1):
+            value = np.mean([serie[i-1], serie[i], serie[i+1]])
+            avg.append(value)
+        value = avg.pop()
+        avg.append(value)
+        avg.append(value)
+        all.append(avg)
     
+    trend = np.array(all)
 
-    #convert dataFrame into a numpy array
-    detrended = np.array(diff)
-    """result = seasonal_decompose(np.transpose(X[50]), model='additive', freq = 1)
-
-    result.plot()
-    plt.show()"""
-
-    return detrended
+    detrended = X - trend
+    
+    return detrended, trend
 
 
 # split a univariate sequence into samples
@@ -63,7 +69,7 @@ def plot(pred, yhat):
 
     #print(pred[0])
     #print(yhat[0])
-    ax.plot(list(pred[0]),yhat[0],'x', label="k=4")
+    ax.plot(list(pred[0]),yhat[0],'x', label="k=6")
 
     ax.set_xlabel("original value",fontsize=20)
     ax.set_ylabel("predicted value",fontsize=20)
@@ -74,19 +80,19 @@ def plot(pred, yhat):
     plt.show()
 
 def main(argv):
-    #read_file = pd.read_excel (r'/Users/giselaalbors/desktop/M3C.xls', sheet_name='M3Month')
-    #read_file.to_csv (r'/Users/giselaalbors/desktop/new.csv', index = None, header=True)
-
     # define input sequence
     raw_seq = load_data("new.csv")
 
     # split between training and testing data
     test_dataset, training_dataset = train_test_split(raw_seq, train_size=0.8, test_size=0.2, random_state = 3)
 
-    data,pred=split_sequence(training_dataset)
+    #find trend and detrended version of the training data set
+    detrended, trend = detrending(training_dataset)
 
-    data=np.array(data)
-    pred=np.array(pred)
+    #split timeseries between input data and values to predict
+    data, pred = split_sequence(training_dataset) 
+    data_detrended, pred_detrended = split_sequence(detrended) 
+    data_trend, pred_trend = split_sequence(trend) 
 
     # define model
     model = Sequential()
@@ -99,16 +105,37 @@ def main(argv):
     model.add(Dense(6))
     model.compile(optimizer='adam', loss='mse',metrics=['accuracy'])
 
-    # fit model
-    model.fit(data, pred, batch_size=14 , epochs=30, verbose=1)
+    # fit model detrended data
+    model.fit(np.array(data_detrended), np.array(pred_detrended), batch_size=14 , epochs=30, verbose=1)
 
-    # demonstrate prediction
-    x_input = np.array(data[0])
-    x_input = x_input.reshape((1, 62))
-    yhat = model.predict(x_input, verbose=0)
-    print(yhat)
+    """# demonstrate prediction detrended data
+    x_input_detrended = np.array(data_detrended[0])
+    x_input_detrended = x_input_detrended.reshape((1, 62))
+    yhat_detrended = model.predict(x_input_detrended, verbose=0)
+    print(yhat_detrended)
 
-    plot(pred, yhat)
+    # demonstrate prediction trend data
+    x_input_trend = np.array(data_trend[0])
+    x_input_trend = x_input_trend.reshape((1, 62))
+    yhat_trend = model.predict(x_input_trend, verbose=0)
+    print(yhat_trend)
+
+    plot(pred, yhat_detrended + yhat_trend)"""
+
+    #evaluate the model with the training data
+    results = model.evaluate(np.array(data_detrended), np.array(pred_detrended))
+    print("test loss, test acc:", results)
+
+    #find trend and detrended version of the testing data set
+    test_detrended, test_trend = detrending(test_dataset)
+
+    #split timeseries between input data and values to predict
+    test_data, test_pred = split_sequence(test_detrended) 
+
+    #evaluate the model with the testing data
+    """results_test = model.evaluate(np.array(test_data), np.array(test_pred))
+    print("test loss, test acc:", results_test)"""
+
 
 if __name__ == "__main__":
     main(sys.argv)
