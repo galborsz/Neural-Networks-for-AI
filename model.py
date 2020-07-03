@@ -86,35 +86,24 @@ def main(argv):
     # split between training and testing data
     test_dataset, training_dataset = train_test_split(raw_seq, train_size=0.8, test_size=0.2, random_state = 3)
 
-    
-
     #split timeseries between input data and values to predict
     data, pred = split_sequence(training_dataset) 
 
     #find trend and detrended version of the training data set
     detrended, trend = detrending(data)
-    print(len(trend[0]))
+
+    #input x values for polynomials
     x = range(len(trend[1]))
-    trend_coeff = np.polyfit(list(x), trend[1], deg = 3)
-
-    
-    polyn = np.poly1d(trend_coeff)
-
     x2 = range(len(trend[0]), 68)
 
-    """plt.plot(trend[1])
-    plt.plot(x, polyn(x))
-    plt.show()"""
-
+    #find best adjusted polynomial to each trend, made polynomial larger and substract these forecasted values from the original prediction values
     detrended_pred = []
-    for serie in pred:
-        value = serie - polyn(x2)
-        detrended_pred.append(value)
+    for serie_trend, serie_pred in zip(trend, pred):
+        trend_coeff = np.polyfit(list(x), serie_trend, deg = 3)
+        polyn = np.poly1d(trend_coeff)
+        value = serie_pred - polyn(x2)
+        detrended_pred.append(value) 
 
-
-    #data_detrended, pred_detrended = split_sequence(detrended) 
-
-    #data_trend, pred_trend = split_sequence(trend) 
 
     # define model
     model = Sequential()
