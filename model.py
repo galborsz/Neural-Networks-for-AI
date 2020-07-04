@@ -10,6 +10,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from statsmodels.tsa.stattools import adfuller
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold
 
 
 def load_data(filename):
@@ -79,6 +80,24 @@ def plot(pred, yhat):
     plt.savefig('plot.png')
     plt.show()
 
+def create_model():
+    # define model
+    model = Sequential()
+    model.add(Dense(15, activation='relu'))
+
+    model.add(Dense(20, activation='relu'))
+    model.add(Dropout(0.1))
+    model.add(Dense(25, activation='relu'))
+
+    model.add(Dense(20, activation='relu'))
+    model.add(Dropout(0.1))
+    model.add(Dense(15, activation='relu'))
+
+    model.add(Dense(6))
+    model.compile(optimizer='adam', loss='mse',metrics=['accuracy'])
+
+    return model
+
 def main(argv):
     # define input sequence
     raw_seq = load_data("new.csv")
@@ -86,56 +105,49 @@ def main(argv):
     # split between training and testing data
     test_dataset, training_dataset = train_test_split(raw_seq, train_size=0.8, test_size=0.2, random_state = 3)
 
-    #split timeseries between input data and values to predict
-    data, pred = split_sequence(training_dataset) 
+    Test_Loss = []
+    Test_Accuracy = []
 
-    #find trend and detrended version of the training data set
-    detrended, trend = detrending(data)
+    kf = KFold(n_splits=10) 
+    i=0
+    for train, test in kf.split(training_dataset):
+        i=i+1
+        print("Running Fold", i,"/", 10)
+        model = None # Clearing the NN.
+        model = create_model()
 
-    #input x values for polynomials
-    x = range(len(trend[1]))
-    x2 = range(len(trend[0]), 68)
+        #split timeseries between input data and values to predict
+        data, pred = split_sequence(training_dataset[train]) 
 
-    #find best adjusted polynomial to each trend, made polynomial larger and substract these forecasted values from the original prediction values
-    detrended_pred = []
-    for serie_trend, serie_pred in zip(trend, pred):
-        trend_coeff = np.polyfit(list(x), serie_trend, deg = 3)
-        polyn = np.poly1d(trend_coeff)
-        value = serie_pred - polyn(x2)
-        detrended_pred.append(value) 
+        #find trend and detrended version of the training data set
+        detrended, trend = detrending(data)
 
+        #input x values for polynomials
+        x = range(len(trend[1]))
+        x2 = range(len(trend[0]), 68)
 
-    # define model
-    model = Sequential()
-    model.add(Dense(80, activation='relu'))
-    model.add(Dropout(0.1))
-    model.add(Dense(100, activation='relu'))
-    model.add(Dropout(0.1))
-    model.add(Dense(70, activation='relu'))
-    model.add(Dropout(0.1))
-    model.add(Dense(6))
-    model.compile(optimizer='adam', loss='mse',metrics=['accuracy'])
+        #find best adjusted polynomial to each trend, made polynomial larger and substract these forecasted values from the original prediction values
+        detrended_pred = []
+        for serie_trend, serie_pred in zip(trend, pred):
+            trend_coeff = np.polyfit(list(x), serie_trend, deg = 3)
+            polyn = np.poly1d(trend_coeff)
+            value = serie_pred - polyn(x2)
+            detrended_pred.append(value) 
 
-    # fit model detrended data
-    model.fit(np.array(detrended), np.array(detrended_pred), batch_size=14 , epochs=30, verbose=1)
+        # fit model detrended data
+        model.fit(np.array(detrended), np.array(detrended_pred), batch_size=14 , epochs=30, verbose=1)
+    
+        #split timeseries between input data and values to predict
+        data_test, pred_test = split_sequence(training_dataset[test]) 
 
-    """# demonstrate prediction detrended data
-    x_input_detrended = np.array(data_detrended[0])
-    x_input_detrended = x_input_detrended.reshape((1, 62))
-    yhat_detrended = model.predict(x_input_detrended, verbose=0)
-    print(yhat_detrended)
+        #evaluate the model with the training data
+        results = model.evaluate(np.array(data_test), np.array(pred_test))
+        print("test loss, test acc:", results)
+        Test_Loss.append(results[0])
+        Test_Accuracy.append(results[1])
 
-    # demonstrate prediction trend data
-    x_input_trend = np.array(data_trend[0])
-    x_input_trend = x_input_trend.reshape((1, 62))
-    yhat_trend = model.predict(x_input_trend, verbose=0)
-    print(yhat_trend)
-
-    plot(pred, yhat_detrended + yhat_trend)"""
-
-    #evaluate the model with the training data
-    results = model.evaluate(np.array(detrended), np.array(detrended_pred))
-    print("test loss, test acc:", results)
+    #get the mean of each fold 
+    print("Accuracy of Model with Cross Validation is:", np.mean(Test_Accuracy) * 100)  
 
     #find trend and detrended version of the testing data set
     test_detrended, test_trend = detrending(test_dataset)
