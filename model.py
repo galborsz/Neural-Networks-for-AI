@@ -24,13 +24,7 @@ def load_data(filename):
     df.drop(df.columns[[0, 1, 2, 3, 4, 5]], axis=1, inplace=True)
  
     X = np.array(df.values)
-
-    """result = adfuller(X[0])
-    print('ADF Statistic: %f' % result[0])
-    print('p-value: %f' % result[1])
-    print('Critical Values:')
-    for key, value in result[4].items():
-        print('\t%s: %.3f' % (key, value))"""
+    
     return X
 
 def detrending (X):
@@ -68,8 +62,6 @@ def plot(pred, yhat):
     fig = plt.figure(figsize=(10,10))
     ax = plt.axes()
 
-    #print(pred[0])
-    #print(yhat[0])
     ax.plot(list(pred[0]),yhat[0],'x', label="k=6")
 
     ax.set_xlabel("original value",fontsize=20)
@@ -83,19 +75,18 @@ def plot(pred, yhat):
 def create_model():
     # define model
     model = Sequential()
-    model.add(Dense(25, activation='relu'))
-    #model.add(Dropout(0.6))
+    model.add(Dense(1, activation='relu'))
+    model.add(Dropout(0.4))
+    model.add(Dense(1, activation='relu'))
+    model.add(Dropout(0.3))
+    model.add(Dense(1, activation='relu'))
 
-    model.add(Dense(30, activation='relu'))
+    model.add(Dense(1, activation='relu'))
 
-    model.add(Dense(50, activation='relu'))
-    #model.add(Dropout(0.3))
-    model.add(Dense(40, activation='relu'))
-
-    model.add(Dense(20, activation='relu'))
+    model.add(Dense(1, activation='relu'))
 
     model.add(Dense(6))
-    model.compile(optimizer='adam', loss='mse',metrics=['accuracy'])
+    model.compile(optimizer='adam', loss='mse', metrics=['accuracy'])
 
     return model
 
@@ -124,18 +115,19 @@ def main(argv):
 
             #find trend and detrended version of the training data set
             detrended, trend = detrending(data)
-
+            
             #input x values for polynomials
             x = range(len(trend[1]))
             x2 = range(len(trend[0]), 68)
-
+            x3 = range(0, 68)
+            
             #find best adjusted polynomial to each trend, made polynomial larger and substract these forecasted values from the original prediction values
             detrended_pred = []
             for serie_trend, serie_pred in zip(trend, pred):
                 trend_coeff = np.polyfit(list(x), serie_trend, deg = 3)
                 polyn = np.poly1d(trend_coeff)
                 value = serie_pred - polyn(x2)
-                detrended_pred.append(value) 
+                detrended_pred.append(value)
 
             # fit model detrended data
             model.fit(np.array(detrended), np.array(detrended_pred), batch_size=14 , epochs=30, verbose=1)
@@ -152,17 +144,30 @@ def main(argv):
         mean_per_run.append(np.mean(Test_Accuracy) * 100)
         
     total_mean = np.mean(mean_per_run)
-    print("Accuracy of Model with Cross Validation is:", total_mean) 
+    print("Accuracy of Model with training data:", total_mean) 
 
     #find trend and detrended version of the testing data set
     test_detrended, test_trend = detrending(test_dataset)
 
-    #split timeseries between input data and values to predict
-    test_data, test_pred = split_sequence(test_detrended) 
+    #split timeseries between input data and values to predict detrended
+    test_data, test_pred = split_sequence(test_detrended)
+
+    #split timeseries between input data and values to predict trend
+    test_data_trend, test_pred_trend = split_sequence(test_trend)
 
     #evaluate the model with the testing data
-    """results_test = model.evaluate(np.array(test_data), np.array(test_pred))
-    print("test loss, test acc:", results_test)"""
+    results_test = model.evaluate(np.array(test_data), np.array(test_pred))
+    print("Test loss, Test acc:", results_test)
+
+    # Generate predictions detrended data
+    yhat = model.predict(np.array(test_data), verbose=0)
+    print("Detrended predictions: ", yhat)
+
+    # Generate predictions trend
+    yhat_trend = model.predict(np.array(test_data_trend), verbose=0)
+    print("Trend predictions: ", yhat_trend)
+
+    print("Final predictions: ", yhat_trend + yhat)
 
 
 if __name__ == "__main__":
