@@ -24,11 +24,11 @@ def load_data(filename):
     df.drop(df.columns[[0, 1, 2, 3, 4, 5]], axis=1, inplace=True)
  
     X = np.array(df.values)
-    
+
     return X
 
 def detrending (X):
-    #statistical test to check if our time series are non-stationary
+    #Find the trend of the data by using a moving average
     all = []
     for serie in X:
         avg = []
@@ -43,12 +43,13 @@ def detrending (X):
     
     trend = np.array(all)
 
+    #find the detrended version of the data by substracting the trend from the original data
     detrended = X - trend
     
     return detrended, trend
 
 
-# split a univariate sequence into samples
+# split the timeseries into input data and predictions
 # SOURCE: https://machinelearningmastery.com/how-to-develop-multilayer-perceptron-models-for-time-series-forecasting/
 def split_sequence(seq):
     X=[]
@@ -80,11 +81,8 @@ def create_model():
     model.add(Dense(1, activation='relu'))
     model.add(Dropout(0.3))
     model.add(Dense(1, activation='relu'))
-
     model.add(Dense(1, activation='relu'))
-
     model.add(Dense(1, activation='relu'))
-
     model.add(Dense(6))
     model.compile(optimizer='adam', loss='mse', metrics=['accuracy'])
 
@@ -119,9 +117,8 @@ def main(argv):
             #input x values for polynomials
             x = range(len(trend[1]))
             x2 = range(len(trend[0]), 68)
-            x3 = range(0, 68)
             
-            #find best adjusted polynomial to each trend, made polynomial larger and substract these forecasted values from the original prediction values
+            #find best adjusted polynomial to each trend, make polynomial larger and substract these forecasted values from the original prediction values
             detrended_pred = []
             for serie_trend, serie_pred in zip(trend, pred):
                 trend_coeff = np.polyfit(list(x), serie_trend, deg = 3)
@@ -142,31 +139,33 @@ def main(argv):
             Test_Accuracy.append(results[1])
 
         mean_per_run.append(np.mean(Test_Accuracy) * 100)
-        
+    
+    #mean of the accuracies obtained in the 5 iterations of the evaluation process
     total_mean = np.mean(mean_per_run)
     print("Accuracy of Model with training data:", total_mean) 
 
     #find trend and detrended version of the testing data set
     test_detrended, test_trend = detrending(test_dataset)
 
-    #split timeseries between input data and values to predict detrended
+    #split timeseries between input data and values to predict the detrended version of the test data
     test_data, test_pred = split_sequence(test_detrended)
 
-    #split timeseries between input data and values to predict trend
+    #split timeseries between input data and values to predict the trend of the test data
     test_data_trend, test_pred_trend = split_sequence(test_trend)
 
     #evaluate the model with the testing data
     results_test = model.evaluate(np.array(test_data), np.array(test_pred))
     print("Test loss, Test acc:", results_test)
 
-    # Generate predictions detrended data
+    # Generate predictions of the detrended data
     yhat = model.predict(np.array(test_data), verbose=0)
     print("Detrended predictions: ", yhat)
 
-    # Generate predictions trend
+    # Generate predictions of the trend
     yhat_trend = model.predict(np.array(test_data_trend), verbose=0)
     print("Trend predictions: ", yhat_trend)
 
+    #Final predictions: sum of the predictions of the detrended data and the predictions of the trend
     print("Final predictions: ", yhat_trend + yhat)
 
 
